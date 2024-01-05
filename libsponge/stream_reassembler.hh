@@ -19,11 +19,12 @@ class StreamReassembler {
     size_t _first_unread;
     size_t _first_unassembled;
     size_t _first_unaccepted;
-    //                                assembled_string
-    //                                      ↓
+    size_t _next_assembled;
+    //                        assembled_string   first_unassembled
+    //                                      ↓      ↓
     // |-------bytes-------|----bytes---|------|-------bytes-------|-------bytes-------|
     //                     ↑                   ↑                   ↑
-    //                 first_unread    first_unassembled    fist_unaccepted
+    //                 first_unread      next_assembled       fist_unaccepted
     std::optional<size_t> _eof_index;
     std::map<size_t, string> _unassembled_string;
     string _assembled_string;
