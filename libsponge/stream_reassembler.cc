@@ -45,14 +45,17 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
                     iter);  // erase operatioin returns the next valid iterator after being erased
             }
         }
-        _data += string(max_substring->second.begin() + (index - max_substring->first), max_substring->second.end());
-        if (!_unassembled_string.empty() && max_substring != _unassembled_string.begin())
-            _unassembled_string.erase(_unassembled_string.begin());
-        else if (!_unassembled_string.empty()) {
-            _unassembled_string.erase(max_substring);
+        if (max_substring->first + max_substring->second.size() >= index + _data.size()) {
+            _data.append(string(max_substring->second.begin() + (index + _data.size() - max_substring->first),
+                                max_substring->second.end()));
+            if (!_unassembled_string.empty() && max_substring != _unassembled_string.begin())
+                _unassembled_string.erase(_unassembled_string.begin());
+            else if (!_unassembled_string.empty()) {
+                _unassembled_string.erase(max_substring);
+            }
         }
     }
-
+    // _data = removeNullCharacters(_data);
     // Make sure first_unacceptable - first_unread >= capacity
     // while (_first_unaccepted - _first_unread > _capacity) {
     //     _first_unread = _output.bytes_read();
@@ -74,12 +77,12 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
     }
     push_to_stream(_assembled_string);
     if (eof) {
-        _eof_index = std::make_optional<size_t>(index);
+        _eof_index = std::make_optional<size_t>(index + _data.size());
     }
     if (_eof_index.has_value() && _first_unassembled - _assembled_string.size() >= _eof_index.value()) {
         _output.end_input();
     }
-    std::cout << data << index << eof << _data;
+    // std::cout << "data:" << data << "\n index:" << index << "\neof:" << eof << "\n_data:" << _data << std::endl;
 }
 
 size_t StreamReassembler::unassembled_bytes() const { return _first_unaccepted - _first_unassembled; }
@@ -94,4 +97,13 @@ size_t StreamReassembler::push_to_stream(string &assembled_string) {
         assembled_string = string(assembled_string.begin() + len, assembled_string.end());
     }
     return len;
+}
+std::string removeNullCharacters(const std::string &str) {
+    std::string result;
+    for (char c : str) {
+        if (c != '\000') {
+            result += c;
+        }
+    }
+    return result;
 }

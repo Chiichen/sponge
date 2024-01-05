@@ -63,4 +63,5 @@ class StreamReassembler {
     bool empty() const;
 };
 
+std::string removeNullCharacters(const std::string &str);
 #endif  // SPONGE_LIBSPONGE_STREAM_REASSEMBLER_HH
