@@ -52,7 +52,11 @@ void ByteStream::pop_output(const size_t len) {
 std::string ByteStream::read(const size_t len) {
     auto read_len = min(len, _queue.size());
     _read_size += read_len;
-    return string(_queue.begin(), _queue.begin() + read_len);
+    string ans = string(_queue.begin(), _queue.begin() + read_len);
+    for (size_t i = 0; i < read_len; i++) {
+        _queue.pop_front();
+    }
+    return ans;
 }
 
 void ByteStream::end_input() { _end_input = true; }
