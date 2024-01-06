@@ -39,14 +39,48 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
             : data;  // Truncate the overflowed part
     _first_unaccepted = max(_first_unaccepted, index + _data.size());
     if (!_unassembled_string.empty() && _unassembled_string.begin()->first <= index + _data.size()) {
-        for (auto iter = _unassembled_string.begin();
-             iter != _unassembled_string.end() && iter->first <= index + _data.size();
-             iter++) {
-            if (iter->first + iter->second.size() >= index + _data.size()) {
-                _data.append(string(iter->second.begin() + (index + _data.size() - iter->first), iter->second.end()));
+        for (auto iter = _unassembled_string.begin(); iter != _unassembled_string.end();) {
+            //     in _unassembled_string map
+            //        |-------------|
+            //    |-------------|
+            //     data passed
+            //  ------------- OR -------------------
+            //     in _unassembled_string map
+            //        |-------------|
+            //    |-----------------------|
+            //           data passed
+            if (iter->first <= index + _data.size() && iter->first >= index) {
+                if (iter->first + iter->second.size() >= index + _data.size()) {
+                    _data.append(
+                        string(iter->second.begin() + (index + _data.size() - iter->first), iter->second.end()));
+                }
+                iter = _unassembled_string.erase(
+                    iter);  // erase operatioin returns the next valid iterator after being erased
             }
-            // TODO Here required an erase operator to delete the previous substrings stored in memory. But some bugs
-            // not fixed yet
+            //    in _unassembled_string map
+            //       |-------------|
+            //             |-------------|
+            //                data passed
+            //  ------------- OR -------------------
+            //    in _unassembled_string map
+            //       |-----------------------|
+            //             |-------------|
+            //                data passed
+            else if (index >= iter->first && index <= iter->first + iter->second.size()) {
+                if (iter->first + iter->second.size() <= index + data.size()) {
+                    iter->second.append(string(data.begin() + (iter->first + iter->second.size() - index), data.end()));
+                    return;
+                } else {
+                    return;
+                }
+            } else {
+                iter++;
+            }
+            //    in _unassembled_string map
+            //       |-------------|
+            //                           |-------------|
+            //                              data passed
+            // just continue
             // iter =
             //     _unassembled_string.erase(iter);  // erase operatioin returns the next valid iterator after being
             //     erased
@@ -81,26 +115,26 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
     //     _first_unread = _output.bytes_read();
     // }
     if (index == _next_assembled) {
-        _assembled_string += _data;
+        _assembled_string.append(_data);
         _next_assembled += _data.size();
     } else if (index < _next_assembled) {
         if (index + _data.size() <= _next_assembled) {
             return;
         } else {
-            _assembled_string += string(_data.begin() + (_next_assembled - index), _data.end());
+            _assembled_string.append(string(_data.begin() + (_next_assembled - index), _data.end()));
             _next_assembled = index + _data.size();
         }
     } else {
         if (index > _next_assembled) {
             _first_unassembled = _first_unassembled > _next_assembled ? min(index, _first_unassembled) : index;
         }
-        if (_unassembled_string[index].size() > _data.size()) {
-            _unassembled_string[index] = _unassembled_string[index];
-        } else {
-            _unassembled_string[index] = _data;
-        }
-        // _unassembled_string[index] =
-        //     _unassembled_string[index].size() > _data.size() ? _unassembled_string[index] : _data;
+        // if (_unassembled_string[index].size() > _data.size()) {
+        //     _unassembled_string[index] = _unassembled_string[index];
+        // } else {
+        //     _unassembled_string[index] = _data;
+        // }
+        _unassembled_string[index] =
+            _unassembled_string[index].size() > _data.size() ? _unassembled_string[index] : _data;
     }
     auto len = push_to_stream(_assembled_string);
     if (len != 0) {
