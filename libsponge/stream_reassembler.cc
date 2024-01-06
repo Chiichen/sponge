@@ -88,8 +88,16 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
             _next_assembled = index + _data.size();
         }
     } else {
-        _unassembled_string[index] =
-            _unassembled_string[index].size() > _data.size() ? _unassembled_string[index] : _data;
+        if (index > _next_assembled) {
+            _first_unassembled = _first_unassembled > _next_assembled ? min(index, _first_unassembled) : index;
+        }
+        if (_unassembled_string[index].size() > _data.size()) {
+            _unassembled_string[index] = _unassembled_string[index];
+        } else {
+            _unassembled_string[index] = _data;
+        }
+        // _unassembled_string[index] =
+        //     _unassembled_string[index].size() > _data.size() ? _unassembled_string[index] : _data;
     }
     auto len = push_to_stream(_assembled_string);
     if (len != 0) {
