@@ -28,7 +28,7 @@ class StreamReassembler {
     std::optional<size_t> _eof_index;
     std::map<size_t, string> _unassembled_string;
     string _assembled_string;
-
+    size_t _unassembled_bytes;
     size_t push_to_stream(std::string &assembled_string);
 
   public:
