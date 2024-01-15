@@ -25,7 +25,8 @@ StreamReassembler::StreamReassembler(const size_t capacity)
     , _next_assembled(0)
     , _eof_index()
     , _unassembled_string(map<size_t, string>())
-    , _assembled_string(string()) {}
+    , _assembled_string(string())
+    , _unassembled_bytes(0) {}
 
 //! \details This function accepts a substring (aka a segment) of bytes,
 //! possibly out-of-order, from the logical stream, and assembles any newly
@@ -54,8 +55,10 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
                     _data.append(
                         string(iter->second.begin() + (index + _data.size() - iter->first), iter->second.end()));
                 }
+                _unassembled_bytes -= iter->second.size();
                 iter = _unassembled_string.erase(
                     iter);  // erase operatioin returns the next valid iterator after being erased
+                iter = _unassembled_string.begin();  // Maybe this can be deleted?
             }
             //    in _unassembled_string map
             //       |-------------|
@@ -68,7 +71,9 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
             //                data passed
             else if (index >= iter->first && index <= iter->first + iter->second.size()) {
                 if (iter->first + iter->second.size() <= index + data.size()) {
-                    iter->second.append(string(data.begin() + (iter->first + iter->second.size() - index), data.end()));
+                    auto iter_offset = data.begin() + (iter->first + iter->second.size() - index);
+                    _unassembled_bytes += data.end() - iter_offset;
+                    iter->second.append(string(iter_offset, data.end()));
                     return;
                 } else {
                     return;
@@ -80,40 +85,14 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
             //       |-------------|
             //                           |-------------|
             //                              data passed
+            //              OR
+            //         data passed
+            //       |-------------|
+            //                           |-------------|
+            //                       in _unassembled_string map
             // just continue
-            // iter =
-            //     _unassembled_string.erase(iter);  // erase operatioin returns the next valid iterator after being
-            //     erased
         }
-        // if (!_unassembled_string.empty() && _unassembled_string.begin()->first <= index + _data.size()) {
-        //     auto max_substring = _unassembled_string.begin();
-        //     for (auto iter = _unassembled_string.begin(); iter != _unassembled_string.end() &&
-        //                                                   iter->first <= index + _data.size() &&
-        //                                                   iter->first + iter->second.size() >= index + _data.size();)
-        //                                                   {
-        //         if (iter->first + iter->second.size() > max_substring->first + max_substring->second.size()) {
-        //             max_substring = iter;
-        //             ++iter;
-        //         } else {
-        //             iter = _unassembled_string.erase(
-        //                 iter);  // erase operatioin returns the next valid iterator after being erased
-        //         }
-        //     }
-        //     if (max_substring->first + max_substring->second.size() >= index + _data.size()) {
-        //         _data.append(string(max_substring->second.begin() + (index + _data.size() - max_substring->first),
-        //                             max_substring->second.end()));
-        //         if (!_unassembled_string.empty() && max_substring != _unassembled_string.begin())
-        //             _unassembled_string.erase(_unassembled_string.begin());
-        //         else if (!_unassembled_string.empty()) {
-        //             _unassembled_string.erase(max_substring);
-        //         }
-        //     }
     }
-    // _data = removeNullCharacters(_data);
-    // Make sure first_unacceptable - first_unread >= capacity
-    // while (_first_unaccepted - _first_unread > _capacity) {
-    //     _first_unread = _output.bytes_read();
-    // }
     if (index == _next_assembled) {
         _assembled_string.append(_data);
         _next_assembled += _data.size();
@@ -128,13 +107,12 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
         if (index > _next_assembled) {
             _first_unassembled = _first_unassembled > _next_assembled ? min(index, _first_unassembled) : index;
         }
-        // if (_unassembled_string[index].size() > _data.size()) {
-        //     _unassembled_string[index] = _unassembled_string[index];
-        // } else {
-        //     _unassembled_string[index] = _data;
-        // }
-        _unassembled_string[index] =
-            _unassembled_string[index].size() > _data.size() ? _unassembled_string[index] : _data;
+        if (_unassembled_string[index].size() > _data.size()) {
+            _unassembled_string[index] = _unassembled_string[index];
+        } else {
+            _unassembled_bytes += _data.size() - _unassembled_string[index].size();
+            _unassembled_string[index] = _data;
+        }
     }
     auto len = push_to_stream(_assembled_string);
     if (len != 0) {
@@ -149,7 +127,7 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
     // std::cout << "data:" << data << "\n index:" << index << "\neof:" << eof << "\n_data:" << _data << std::endl;
 }
 
-size_t StreamReassembler::unassembled_bytes() const { return _first_unaccepted - _first_unassembled; }
+size_t StreamReassembler::unassembled_bytes() const { return _unassembled_bytes; }
 
 bool StreamReassembler::empty() const { return _first_unaccepted == _next_assembled; }
 
