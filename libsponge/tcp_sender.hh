@@ -43,12 +43,9 @@ class TCPSender {
 
     unsigned int _retx_count{0};
 
-    uint16_t _cur_window_size{1};
+    uint64_t _cur_window_size{1};
 
     uint64_t _bytes_in_flight{0};
-
-    //! Segment that have been retransmitted
-    set<uint64_t> _retx_segment{};
 
   public:
     //! Initialize a TCPSender
