@@ -34,31 +34,25 @@ uint64_t TCPSender::bytes_in_flight() const { return _bytes_in_flight; }
 void TCPSender::fill_window() {
     auto cur_window_size = max(static_cast<uint64_t>(1), _cur_window_size);
     while (cur_window_size > _bytes_in_flight) {  // If there is no data in flight, it means a SYN or FIn is needed
-        if (next_seqno_absolute() == 0) {         // Send SYN immediately
-            auto syn_segment = TCPSegment();
-            syn_segment.header().syn = true;
-            syn_segment.header().seqno = next_seqno();
-            _segments_out.push(syn_segment);
-            _segments_tracking.push(pair(next_seqno_absolute(), syn_segment));
-            _bytes_in_flight += syn_segment.length_in_sequence_space();
-            _next_seqno += syn_segment.length_in_sequence_space();
-            cur_window_size -= syn_segment.length_in_sequence_space();
-            _retx_timer = _retx_timer.has_value() ? _retx_timer : 0;
-            continue;
-        }
         auto segment = TCPSegment();
-        segment.header().seqno = next_seqno();
-        auto payload_size = min(cur_window_size - _bytes_in_flight, TCPConfig::MAX_PAYLOAD_SIZE);
-        segment.payload() = _stream.read(payload_size);
-        if (stream_in().eof() &&
-            next_seqno_absolute() != _stream.bytes_written() + 2) {  // Arrive EOF AND FIN not sent before
-            if (segment.payload().size() + _bytes_in_flight + 1 <=
-                cur_window_size) {  // there is enough window space to obtain an extra FIN byte
-                segment.header().fin = true;
+        if (next_seqno_absolute() == 0) {  // Send SYN immediately
+            segment.header().syn = true;
+            segment.header().seqno = next_seqno();
+            _retx_timer = _retx_timer.has_value() ? _retx_timer : 0;
+        } else {
+            segment.header().seqno = next_seqno();
+            auto payload_size = min(cur_window_size - _bytes_in_flight, TCPConfig::MAX_PAYLOAD_SIZE);
+            segment.payload() = _stream.read(payload_size);
+            if (stream_in().eof() &&
+                next_seqno_absolute() != _stream.bytes_written() + 2) {  // Arrive EOF AND FIN not sent before
+                if (segment.payload().size() + _bytes_in_flight + 1 <=
+                    cur_window_size) {  // there is enough window space to obtain an extra FIN byte
+                    segment.header().fin = true;
+                }
             }
-        }
-        if (segment.length_in_sequence_space() == 0) {
-            return;  // If there is no data to be sent, cancel tramsmission
+            if (segment.length_in_sequence_space() == 0) {
+                return;  // If there is no data to be sent, cancel tramsmission
+            }
         }
         _segments_out.push(segment);
         _segments_tracking.push(pair(next_seqno_absolute(), segment));
@@ -117,10 +111,10 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
 unsigned int TCPSender::consecutive_retransmissions() const { return _retx_count; }
 
 void TCPSender::send_empty_segment() {
-    auto syn_segment = TCPSegment();
-    syn_segment.header().seqno = next_seqno();
-    _segments_out.push(syn_segment);
-    _segments_tracking.push(pair(next_seqno_absolute(), syn_segment));
-    _bytes_in_flight += syn_segment.length_in_sequence_space();
+    auto segment = TCPSegment();
+    segment.header().seqno = next_seqno();
+    _segments_out.push(segment);
+    _segments_tracking.push(pair(next_seqno_absolute(), segment));
+    _bytes_in_flight += segment.length_in_sequence_space();
     _next_seqno += 1;
 }
