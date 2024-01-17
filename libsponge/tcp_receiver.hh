@@ -65,6 +65,12 @@ class TCPReceiver {
     ByteStream &stream_out() { return _reassembler.stream_out(); }
     const ByteStream &stream_out() const { return _reassembler.stream_out(); }
     //!@}
+
+    bool LISTEN() const { return !ackno().has_value(); }
+
+    bool SYN_RECV() const { return ackno().has_value() && !_reassembler.stream_out().input_ended(); }
+
+    bool FIN_RECV() const { return _reassembler.stream_out().input_ended(); }
 };
 
 #endif  // SPONGE_LIBSPONGE_TCP_RECEIVER_HH
